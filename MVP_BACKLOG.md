@@ -33,6 +33,8 @@ for usage and configuration.
   locking changes and notifying only unanswered players with contact details.
 - [x] Separate queued notification intent from provider delivery, with an in-app
   worker, retries, interrupted-send recovery, and failure tracking.
+- [x] Atomically commit game creation and gathering transitions with all associated
+  notification records. Failure-injection tests verify complete rollback and safe retry.
 - [x] Email (SMTP), Discord, SMS (Vonage, Swedish mobile numbers), and Telegram.
 - [x] Environment-based provider selection shared by forms, API, and delivery.
 - [x] Docker Compose deployment and SQLite volume configuration via `.env.example`.
@@ -60,10 +62,6 @@ details and receive no confirmation or management link.
 
 These are recommended follow-ups, not features already provided by Compose:
 
-- [ ] Make game creation and gathering transitions atomic with their notification
-  queue inserts, following the existing registration and game-start patterns. Test
-  rollback when queuing fails so a successful state change cannot silently lose
-  its delivery intent.
 - [ ] Document and validate a SQLite backup/restore procedure, including recovery
   of game data and pending notifications.
 - [ ] Document a production HTTPS/reverse-proxy setup and verify that `BASE_URL`

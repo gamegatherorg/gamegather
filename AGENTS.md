@@ -68,7 +68,7 @@ The implemented organizer workflow is `open` → `gathering` → `started`:
 
 ### Non-Obvious Gotchas
 - **Registration storage**: There are no `is_active` or `left_at` columns. Removal deletes the row; attendance responses retain it. Registration counts include all remaining rows, including in-person players and declined responses.
-- **Notification Decoupling**: Never call a third-party delivery API directly inside a game service function. Always use `queue_notification` to record the intent in the database first. Pass the current connection when notification intent must be atomic with the state change, as in `start_game()`. Existing `create_game()` and `start_gathering()` queue notifications after committing their state changes, so do not assume all current notification flows are atomic.
+- **Notification Decoupling**: Never call a third-party delivery API directly inside a game service function. Always use `queue_notification` to record the intent in the database first. Pass `connection=conn` so notification inserts share the state-change transaction, as in game creation, registration, gathering, and game start. Let the connection context commit only after all inserts succeed; any queue failure must roll back the state change and all associated notices. Delivery remains asynchronous and uses the worker's retry policy.
 - **Private links**: Organizer and attendance tokens grant access without user accounts. Treat them as secrets; a numeric registration ID is not proof of ownership.
 - **SQLite Types**: Dates and times are stored as ISO 8601 strings in TEXT columns.
 

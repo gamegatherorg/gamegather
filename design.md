@@ -117,10 +117,12 @@ In-process notification worker → provider delivery
 - **Notifications** are queued records, not an external event bus or subscriber
   system. Game services record delivery intent instead of calling providers.
 
-Multi-step writes use transactions. Registration insertion, its confirmation,
-and any threshold notification share a transaction; starting a game and queuing its notices are
-also atomic. Creation and gathering currently commit the game change before
-queuing their notifications, leaving a failure window to address.
+Multi-step writes use transactions. Game creation and its organizer confirmation,
+registration and its confirmation/threshold notices, gathering and all its player
+notices, and game start and its notices each commit atomically. A queue insert
+failure rolls back the associated data change and every notification inserted by
+that operation. Delivery still happens asynchronously after commit; provider
+failures use the worker's retry policy rather than rolling back the game.
 
 ## Current data model
 

@@ -15,7 +15,7 @@ def create_game(
     organizer_notification_method: str,
     organizer_notification_target: str,
 ) -> dict[str, Any]:
-    """Create a new game and queue an organizer confirmation notification."""
+    """Atomically create a game and queue its organizer confirmation."""
     organizer_notification_target = validate_notification_target(
         organizer_notification_method, organizer_notification_target,
     )
@@ -48,17 +48,17 @@ def create_game(
                 created_at,
             ),
         )
-        conn.commit()
         game_id = cursor.lastrowid
 
-    queue_notification(
-        game_id=game_id,
-        recipient_role="organizer",
-        recipient_name=organizer_name,
-        notification_method=organizer_notification_method,
-        notification_target=organizer_notification_target,
-        event_type="game_created",
-    )
+        queue_notification(
+            game_id=game_id,
+            recipient_role="organizer",
+            recipient_name=organizer_name,
+            notification_method=organizer_notification_method,
+            notification_target=organizer_notification_target,
+            event_type="game_created",
+            connection=conn,
+        )
 
     return {
         "id": game_id,
@@ -285,7 +285,7 @@ def remove_registration(registration_id: int, attendance_token: str) -> None:
 
 
 def start_gathering(organizer_token: str) -> dict[str, Any]:
-    """Transition the organizer's game into gathering and queue notifications."""
+    """Atomically transition to gathering and queue all player notifications."""
     with get_connection() as conn:
         conn.execute("BEGIN IMMEDIATE")
         game = conn.execute(
@@ -309,20 +309,20 @@ def start_gathering(organizer_token: str) -> dict[str, Any]:
             "UPDATE games SET status = 'gathering', updated_at = ? WHERE id = ?",
             (datetime.utcnow().isoformat(), game_id),
         )
-        conn.commit()
 
-    for registration in registrations:
-        if registration["notification_method"] == "none":
-            continue
-        queue_notification(
-            game_id=game_id,
-            recipient_role="registration",
-            recipient_name=registration["display_name"],
-            notification_method=registration["notification_method"],
-            notification_target=registration["notification_target"],
-            event_type="gathering_started",
-            action_token=registration["attendance_token"],
-        )
+        for registration in registrations:
+            if registration["notification_method"] == "none":
+                continue
+            queue_notification(
+                game_id=game_id,
+                recipient_role="registration",
+                recipient_name=registration["display_name"],
+                notification_method=registration["notification_method"],
+                notification_target=registration["notification_target"],
+                event_type="gathering_started",
+                action_token=registration["attendance_token"],
+                connection=conn,
+            )
 
     return {"status": "gathering"}
 
