@@ -6,7 +6,7 @@ from typing import Any
 from urllib.parse import quote
 from contextlib import AsyncExitStack, asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from pydantic import BaseModel
 from starlette.staticfiles import StaticFiles
@@ -282,9 +282,12 @@ def register_for_game(game_id: int, payload: CreateRegistrationRequest) -> dict[
 
 
 @app.delete("/registrations/{registration_id}")
-def unregister_for_game(registration_id: int) -> dict[str, bool]:
+def unregister_for_game(
+    registration_id: int,
+    registration_token: str = Header(alias="X-Registration-Token"),
+) -> dict[str, bool]:
     try:
-        remove_registration(registration_id)
+        remove_registration(registration_id, registration_token)
     except ValueError as exc:
         detail = str(exc)
         status_code = 404 if detail == "Registration not found" else 400
@@ -360,6 +363,23 @@ async def attendance_form(request: Request, attendance_token: str) -> Response:
         status_code = 404 if str(exc) == "Attendance link not found" else 400
         return page_error(request, status_code, str(exc))
     return RedirectResponse(url=f"/attendance/{quote(attendance_token)}?saved=true", status_code=303)
+
+
+@app.post("/attendance/{attendance_token}/withdraw", response_class=HTMLResponse)
+def withdraw_registration_form(request: Request, attendance_token: str) -> Response:
+    registration = get_attendance_registration(attendance_token)
+    if not registration:
+        return page_error(request, 404, "Registration link not found.")
+    try:
+        remove_registration(registration["id"], attendance_token)
+    except ValueError as exc:
+        status_code = 404 if str(exc) == "Registration not found" else 400
+        return page_error(request, status_code, str(exc))
+    return templates.TemplateResponse(
+        request=request,
+        name="withdrawn.html",
+        context={"game_title": registration["game_title"], "game_id": registration["game_id"]},
+    )
 
 
 if __name__ == "__main__":

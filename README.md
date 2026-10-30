@@ -25,7 +25,9 @@ so the database survives container replacement.
    notification details. The game is immediately open. Share the public game link
    and keep the private organizer link secret; there are no user accounts.
 2. **Collect interest:** Players register with a display name and one enabled
-   notification method. The organizer can also add in-person players by name only.
+   notification method. A confirmation through that method includes a private
+   management link, usable immediately to withdraw while the game is open. The
+   organizer can also add in-person players by name only.
    Reaching the minimum queues an organizer alert, but does not change the game
    state or automatically start gathering.
 3. **Start gathering:** Once the minimum is met, the organizer selects **Start
@@ -37,14 +39,17 @@ so the database survives container replacement.
    number of confirmed players. This locks attendance responses and further status
    changes. Only players who have not responded receive a game-start notification.
 
-There is no website leave/cancel option while a game is open. Declining during
-gathering keeps the registration and records an attendance response instead of
-removing the player. There are no draft or closed/cancelled workflow states.
+The same private link lets players withdraw while open or respond during
+gathering. Opening it does not remove a registration: players must explicitly
+select **Withdraw registration**. Declining during gathering retains the
+registration instead. There are no draft or closed/cancelled workflow states.
 
-**Known security limitation:** An API-only endpoint can delete an open-game
-registration using just its numeric ID, without an ownership check. This is not a
-secure self-service cancellation feature. Authorization hardening is tracked in
-[`MVP_BACKLOG.md`](MVP_BACKLOG.md); address it before untrusted public use.
+Keep management links private: anyone with a link can manage that registration.
+Use HTTPS in public deployments. API deletion at
+`DELETE /registrations/{registration_id}` requires that registration's token in
+the `X-Registration-Token` header; an ID alone no longer permits deletion.
+Existing private attendance links continue to work, but registration confirmations
+are sent only for new registrations, not retroactively.
 
 ## Email notifications
 
@@ -72,7 +77,7 @@ user ID by DM, then select Discord and paste that ID into the website form.
 If DMs are blocked, the command explains how to enable them. There is no mandatory
 ownership-verification flow, and no user accounts or linking records are stored.
 
-The notification queue sends organizer confirmations, minimum-player alerts,
+The notification queue sends organizer and player registration confirmations, minimum-player alerts,
 gathering requests, and game-start notices to unanswered players by DM when
 Discord is selected. Unknown users and blocked DMs are marked
 as failed; temporary delivery errors use the queue's retry policy. Email remains
@@ -104,7 +109,7 @@ website. No user accounts or verification records are stored.
 
 The app uses long polling, so no public webhook endpoint is needed. Run one
 polling app instance per bot token, and do not configure a webhook for this bot.
-Telegram sends organizer confirmations, minimum-player alerts, private attendance
+Telegram sends organizer and player registration confirmations, minimum-player alerts, private attendance
 links, and game-start notices to unanswered players through the queue and retry
 policy. Set `BASE_URL`
 to an address recipients can reach.
@@ -114,7 +119,7 @@ to an address recipients can reach.
 While a game is open, use **Add an in-person player** on its private organizer
 page to register someone by name only. Adding them immediately confirms they
 are coming and counts toward the minimum needed to start gathering. They receive
-no gathering or game-start notifications.
+no registration, gathering, or game-start notifications.
 
 API clients can POST `{"display_name": "Player name"}` to
 `/organizer/games/{organizer_token}/register`. The private organizer token is

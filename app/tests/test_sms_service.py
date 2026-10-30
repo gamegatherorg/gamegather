@@ -85,7 +85,7 @@ class SmsDeliveryTests(unittest.TestCase):
         create_registration(self.game["id"], "Player", "sms", "+46701234567")
         start_gathering(self.game["organizer_url"].split("/")[-1])
         with patch("src.services.sms_service.urlopen", return_value=self.response("0")) as send:
-            self.assertEqual(process_notifications(), 3)
+            self.assertEqual(process_notifications(), 4)
         payload = parse_qs(send.call_args.args[0].data.decode())
         self.assertIn("https://games.example/attendance/", payload["text"][0])
 

@@ -219,7 +219,8 @@ def _insert_registration(
     notification_target: str,
     attendance_response: str | None = None,
 ) -> dict[str, Any]:
-    """Insert a player and any threshold notification in the caller's transaction."""
+    """Insert a player, confirmation, and threshold notice in one transaction."""
+    attendance_token = secrets.token_urlsafe(32)
     cursor = conn.execute(
         """
         INSERT INTO registrations (
@@ -229,10 +230,21 @@ def _insert_registration(
         """,
         (
             game["id"], display_name, notification_method, notification_target,
-            secrets.token_urlsafe(32), attendance_response,
+            attendance_token, attendance_response,
             datetime.now(timezone.utc).isoformat() if attendance_response else None,
         ),
     )
+    if notification_method != "none":
+        queue_notification(
+            game_id=game["id"],
+            recipient_role="registration",
+            recipient_name=display_name,
+            notification_method=notification_method,
+            notification_target=notification_target,
+            event_type="registration_created",
+            action_token=attendance_token,
+            connection=conn,
+        )
     current_count = conn.execute(
         "SELECT COUNT(*) FROM registrations WHERE game_id = ?", (game["id"],),
     ).fetchone()[0]
@@ -250,8 +262,8 @@ def _insert_registration(
     return {"id": cursor.lastrowid}
 
 
-def remove_registration(registration_id: int) -> None:
-    """Remove a registration while the game is still open."""
+def remove_registration(registration_id: int, attendance_token: str) -> None:
+    """Remove an open-game registration authorized by its private token."""
     with get_connection() as conn:
         conn.execute("BEGIN IMMEDIATE")
         registration = conn.execute(
@@ -259,9 +271,9 @@ def remove_registration(registration_id: int) -> None:
             SELECT r.id, g.status
             FROM registrations r
             JOIN games g ON g.id = r.game_id
-            WHERE r.id = ?
+            WHERE r.id = ? AND r.attendance_token = ?
             """,
-            (registration_id,),
+            (registration_id, attendance_token),
         ).fetchone()
         if not registration:
             raise ValueError("Registration not found")
@@ -356,7 +368,7 @@ def get_attendance_registration(attendance_token: str) -> dict[str, Any] | None:
     with get_connection() as conn:
         registration = conn.execute(
             """
-            SELECT r.display_name, r.attendance_response, r.responded_at,
+            SELECT r.id, r.display_name, r.attendance_response, r.responded_at,
                    g.id AS game_id, g.title AS game_title, g.status AS game_status
             FROM registrations r
             JOIN games g ON g.id = r.game_id

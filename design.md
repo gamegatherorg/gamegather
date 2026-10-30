@@ -30,8 +30,16 @@ are no accounts or login sessions. QR code generation is not implemented.
 
 The home page lists open games. Players visit a public game page and register a
 display name plus one enabled notification method and target. Website submissions
-redirect back to the game page; there is no player registration-confirmation
-notification. Registrations are specific to a game, not reusable player accounts.
+redirect back to the game page. A `registration_created` confirmation is queued
+through the selected provider with a private management link. Registrations are
+specific to a game, not reusable player accounts.
+
+The link uses the existing cryptographically random `attendance_token`, generated
+with `secrets.token_urlsafe(32)`. While open, its page allows explicit withdrawal
+by POST, physically deleting the registration. Opening a link never withdraws a
+player. During gathering the same link allows attendance responses; after start,
+it is read-only. No schema change or separate player account is needed. Existing
+links remain valid, but confirmations are not backfilled for old registrations.
 
 An organizer can also add an in-person player by name only while the game is open.
 These registrations are immediately marked `coming`, count toward the minimum,
@@ -70,15 +78,16 @@ open → gathering → started
 | Operation | Open | Gathering | Started |
 | --- | --- | --- | --- |
 | Public registration or organizer-added in-person player | Allowed | Blocked | Blocked |
-| API registration deletion | Allowed, but missing authorization | Blocked | Blocked |
+| Player withdrawal through private page or token-authorized API | Allowed | Blocked | Blocked |
 | Attendance response through private link | Blocked | Submit or change | Blocked |
 | Organizer starts gathering | Requires minimum registrations | Blocked | Blocked |
 | Organizer starts game | Blocked | Allowed regardless of confirmations | Blocked |
 
-There is no website leave/cancel button for an open game. The API endpoint
-`DELETE /registrations/{registration_id}` physically deletes an open-game
-registration, but currently requires no token or ownership check. This is a known
-security gap, not a complete self-service cancellation feature.
+The API endpoint `DELETE /registrations/{registration_id}` requires the matching
+`attendance_token` in the `X-Registration-Token` header. Missing headers return
+422; invalid or mismatched tokens return 404, as do missing registrations. Valid
+tokens cannot remove a registration once gathering starts. Organizer tokens do
+not authorize deletion; organizer removal is not implemented.
 
 `draft`, `minimum_reached`, and `closed` are not implemented workflow states.
 The database does not constrain the status strings, and the internal
@@ -108,8 +117,8 @@ In-process notification worker → provider delivery
 - **Notifications** are queued records, not an external event bus or subscriber
   system. Game services record delivery intent instead of calling providers.
 
-Multi-step writes use transactions. Registration insertion and its threshold
-notification share a transaction; starting a game and queuing its notices are
+Multi-step writes use transactions. Registration insertion, its confirmation,
+and any threshold notification share a transaction; starting a game and queuing its notices are
 also atomic. Creation and gathering currently commit the game change before
 queuing their notifications, leaving a failure window to address.
 
@@ -154,12 +163,14 @@ The implemented events are:
 | Event | Recipient |
 | --- | --- |
 | `game_created` | Organizer, with public and private organizer links |
+| `registration_created` | Newly registered player, with a private management link, via email, Discord, SMS, or Telegram |
 | `minimum_players_reached` | Organizer |
 | `gathering_started` | Registrations with contact details, with private attendance links |
 | `game_started` | Only unanswered registrations with contact details |
 
-There are no player-joined, player-left, attendance-response, or game-closed
-notification events in the current implementation.
+There are no organizer-facing player-joined, player-left, attendance-response, or
+game-closed notification events in the current implementation. In-person players
+receive no notifications, including registration confirmations.
 
 FastAPI's lifespan starts a background task that polls every 10 seconds and calls
 `process_notifications()` in a worker thread. Processing claims up to ten records
@@ -187,9 +198,9 @@ not confirmed receipt by the player.
 ## Access and deployment
 
 - Public game pages and the open-game listing need no authentication.
-- Private organizer and attendance tokens are bearer credentials: protect their
-  links. The numeric-ID deletion endpoint is the known exception lacking access
-  control and must be hardened before untrusted public use.
+- Private organizer and registration/attendance tokens are bearer credentials:
+  protect their links and use HTTPS in public deployment. Numeric registration IDs
+  alone do not authorize deletion.
 - Docker Compose runs one application container on port 3000. No reverse proxy,
   TLS termination, or external job system is included.
 - `.env.example` sets `DATABASE_PATH=/data/gamegather.db`, matching the Compose
@@ -206,7 +217,7 @@ not confirmed receipt by the player.
 The original proposal included broader features. These remain optional design
 directions, not descriptions of the current application:
 
-- Secure player-facing withdrawal while open, after deletion authorization is fixed.
+- Organizer-authorized registration removal, if desired, with game-scoped access checks.
 - Editing proposals, cancellation/closure, drafts, or reopening, with explicit
   transition and notification rules if adopted.
 - QR codes, descriptions, locations, durations, notes, ideal/maximum counts, and

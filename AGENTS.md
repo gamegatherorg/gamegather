@@ -24,14 +24,15 @@ The implemented organizer workflow is `open` → `gathering` → `started`:
 `draft`, `minimum_reached`, and `closed` are not implemented workflow states. The database status column is unrestricted TEXT, and the internal `set_game_status()` helper accepts arbitrary non-`started` values while a game has not started; do not mistake this for supported lifecycle transitions. Use the organizer actions for gathering and starting.
 
 ### Registration Removal vs. Declining Attendance
-- **Open games**: `DELETE /registrations/{registration_id}` calls `remove_registration()` and physically deletes the registration. There is no player-facing leave/cancel button in the website.
+- **Open games**: Players receive a confirmation through their chosen provider with a private `/attendance/{attendance_token}` management link. That page offers withdrawal through an explicit POST to `/attendance/{attendance_token}/withdraw`, which physically deletes the registration. GET requests never withdraw a player.
 - **Gathering games**: Players can select **Decline** through their private attendance link. This retains the registration and sets `attendance_response = 'declined'`; it is not deletion. They can change their response while gathering continues.
 - **Started games**: Both registration removal and attendance changes are blocked.
-- **Known security gap**: The deletion endpoint currently requires only a registration ID, with no private token or ownership check. It is not a secure self-service cancellation workflow; authorization hardening is tracked in `MVP_BACKLOG.md`.
+- **API authorization**: `DELETE /registrations/{registration_id}` requires `X-Registration-Token` matching that registration's `attendance_token`. Numeric IDs, other players' tokens, and organizer tokens do not authorize deletion. Missing headers return 422, mismatched credentials return 404, and valid credentials after gathering starts return 400.
+- **Token lifecycle**: `attendance_token` is generated with `secrets.token_urlsafe(32)` at registration and serves both withdrawal and later attendance responses. Registration and its `registration_created` confirmation are committed atomically. No schema migration is required; existing links still work, but old registrations are not automatically sent new confirmations.
 
 ### In-Person Players
 - Organizers can add a player by name only while the game is open, using the private organizer token.
-- These registrations use `notification_method = 'none'`, an empty notification target, and an immediate `coming` response. They count toward the minimum for gathering but receive no gathering or game-start notifications.
+- These registrations use `notification_method = 'none'`, an empty notification target, and an immediate `coming` response. They count toward the minimum for gathering but receive no registration, gathering, or game-start notifications.
 - Public registration still requires a supported notification method and valid target.
 
 ### Key Data Flows

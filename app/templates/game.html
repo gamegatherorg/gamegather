@@ -13,6 +13,7 @@
   {% if game.status == "open" %}
     <section class="form-panel">
       <h2>Register your interest</h2>
+      <p>You will receive a confirmation with a private link to manage or withdraw your registration.</p>
       <form action="/games/{{ game.id }}/register-form" method="post" class="stack">
         <label>Your name
           <input name="display_name" required maxlength="100">

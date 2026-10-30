@@ -18,6 +18,10 @@ for usage and configuration.
 - [x] Create an immediately open game with public and private organizer URLs.
 - [x] List open games and view individual public game pages and player counts.
 - [x] Register interest with a name and one enabled notification method.
+- [x] Atomically queue a player registration confirmation through email, Discord,
+  SMS, or Telegram, with a random private management link available from registration.
+- [x] Website withdrawal while open through the private link, with explicit POST
+  confirmation; the same link handles attendance responses during gathering.
 - [x] Add an in-person player from the private organizer page, immediately confirmed
   as coming and without contact details or notifications.
 - [x] Alert the organizer when registration reaches the minimum, without changing
@@ -38,15 +42,19 @@ The supported lifecycle is **`open` → `gathering` → `started`**. There are n
 separate organizer/player account tables, stored minimum-reached state, draft
 workflow, or close/cancel workflow.
 
-Registration deletion exists only as an API operation for open games, with the
-authorization gap described below. It is not a completed player-facing leave
-feature. Declining during gathering retains the registration.
+Registration withdrawal physically removes an open-game registration. Declining
+during gathering retains the registration. In-person players have no contact
+details and receive no confirmation or management link.
+
+## Completed registration-deletion hardening
+
+- [x] Require a matching private registration token in `X-Registration-Token` for
+  `DELETE /registrations/{registration_id}`, preserving open-game-only removal.
+  Regression tests cover missing/invalid tokens, cross-registration and cross-game
+  tokens, authorized removal, and rejection after gathering starts. Organizer-token
+  deletion is not implemented; the player-token option resolves authorization.
 
 ## Remaining work
-
-### Security hardening — priority
-
-- [ ] Require authorization for `DELETE /registrations/{registration_id}`. It currently accepts a numeric registration ID without a private token or ownership check. Require a private registration token or an organizer token authorized for that registration's game, while preserving the open-game-only removal restriction. Add regression tests rejecting missing/invalid credentials and attempts to delete another registration or another organizer's game registration, and covering authorized removal and rejection after gathering starts.
 
 ### Reliability and deployment follow-ups
 
@@ -70,8 +78,8 @@ are not commitments and should be scoped before implementation.
 
 ### Player and organizer workflow
 
-- Secure website withdrawal while a game is open, after deletion authorization is
-  implemented; decide whether players, organizers, or both can remove a registration.
+- Organizer-authorized removal of registrations, with game-scoped access checks,
+  if desired. Current deletion authorization is player-token-only.
 - Game editing, cancellation/closure, drafts, or reopening. Define state and
   notification semantics rather than assuming these statuses already exist.
 - QR code sharing and richer game details: description, location, duration,

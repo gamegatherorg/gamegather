@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Attendance · {{ game_title }}{% endblock %}
+{% block title %}Manage registration · {{ game_title }}{% endblock %}
 {% block content %}
   <section class="form-panel">
-    <p class="eyebrow">Attendance request</p>
+    <p class="eyebrow">Manage registration</p>
     <h1>{{ game_title }}</h1>
     <p>Hi {{ display_name }}{% if game_status == "gathering" %}, please let the organizer know whether you can attend{% endif %}.</p>
 
@@ -12,7 +12,13 @@
       <p class="notice">Your current response is <strong>{{ attendance_response }}</strong>.{% if game_status == "gathering" %} You can change it below.{% endif %}</p>
     {% endif %}
 
-    {% if game_status == "gathering" %}
+    {% if game_status == "open" %}
+      <p>You are registered for this game. You can withdraw until the organizer starts gathering.</p>
+      <p>To confirm that you want to remove your registration, select Withdraw registration below. This cannot be undone.</p>
+      <form action="/attendance/{{ attendance_token }}/withdraw" method="post">
+        <button type="submit" class="secondary">Withdraw registration</button>
+      </form>
+    {% elif game_status == "gathering" %}
       <form action="/attendance/{{ attendance_token }}" method="post" class="inline-form">
         <button name="response" value="coming">Coming</button>
         <button name="response" value="declined" class="secondary">Decline</button>
@@ -23,4 +29,5 @@
       <p class="notice">This game is not currently collecting attendance responses.</p>
     {% endif %}
   </section>
+  <p>Keep this link private; anyone with it can manage your registration.</p>
 {% endblock %}

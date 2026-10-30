@@ -74,6 +74,7 @@ class OrganizerRegistrationTests(unittest.TestCase):
                 "SELECT COUNT(*) FROM notifications WHERE event_type = 'minimum_players_reached'",
             ).fetchone()[0]
         self.assertEqual([(row[0], row[1]) for row in notices], [
+            ("registration_created", "Online"),
             ("gathering_started", "Online"), ("game_started", "Online"),
         ])
         self.assertEqual(threshold_count, 1)

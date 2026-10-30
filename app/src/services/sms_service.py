@@ -44,6 +44,8 @@ def sms_content(item: Any) -> str:
     title = " ".join(game["title"].split())[:40]
     if item["event_type"] == "game_created":
         return f"GameGather: {title} created. Organizer: {base_url}/organizer/games/{quote(game['organizer_token'])}"
+    if item["event_type"] == "registration_created":
+        return f"GameGather: Registered for {title}. Manage or withdraw (keep link private): {base_url}/attendance/{quote(item['action_token'])}"
     if item["event_type"] == "minimum_players_reached":
         return f"GameGather: {title} has enough players. Gather: {base_url}/organizer/games/{quote(game['organizer_token'])}"
     if item["event_type"] == "gathering_started":

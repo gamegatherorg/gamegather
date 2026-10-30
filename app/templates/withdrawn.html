@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Registration withdrawn · {{ game_title }}{% endblock %}
+{% block content %}
+  <section class="form-panel">
+    <h1>Registration withdrawn</h1>
+    <p>Your registration for {{ game_title }} has been removed.</p>
+    <p><a href="/games/{{ game_id }}">View game</a></p>
+  </section>
+{% endblock %}

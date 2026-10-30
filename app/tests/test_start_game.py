@@ -66,7 +66,7 @@ class StartGameTests(unittest.TestCase):
             lambda: set_game_status(self.game["id"], "open"),
             lambda: record_attendance(waiting["attendance_token"], "coming"),
             lambda: record_attendance(coming["attendance_token"], "declined"),
-            lambda: remove_registration(waiting["id"]), lambda: self.register("Late"),
+            lambda: remove_registration(waiting["id"], waiting["attendance_token"]), lambda: self.register("Late"),
         ):
             with self.assertRaises(ValueError):
                 action()

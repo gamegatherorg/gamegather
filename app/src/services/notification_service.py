@@ -93,6 +93,17 @@ def _notification_content(item: Any, game: Any, base_url: str) -> tuple[str, str
             f"Private organizer page: {organizer_url}\n\n"
             "Keep the organizer link private; anyone with it can manage the game.\n"
         )
+    elif item["event_type"] == "registration_created":
+        management_url = f"{base_url}/attendance/{quote(item['action_token'])}"
+        subject = f"Registration confirmed: {game_title}"
+        body = (
+            f"Hi {item['recipient_name']},\n\n"
+            f"You have registered your interest in {game_title}.\n"
+            f"Manage your registration: {management_url}\n\n"
+            "You can withdraw while the game is open, or confirm or decline attendance "
+            "once gathering starts. Keep this link private; anyone with it can manage "
+            "your registration.\n"
+        )
     elif item["event_type"] == "minimum_players_reached":
         organizer_url = f"{base_url}/organizer/games/{quote(game['organizer_token'])}"
         subject = f"Minimum players reached: {game_title}"

@@ -54,11 +54,13 @@ class TelegramTests(unittest.TestCase):
             game = create_game("Game", 1, "Organizer", "telegram", "111")
             create_registration(game["id"], "Player", "telegram", "222")
             start_gathering(game["organizer_url"].split("/")[-1])
-            self.assertEqual(process_notifications(), 3)
+            self.assertEqual(process_notifications(), 4)
             self.assertEqual(send.call_args_list[0].args[0], "111")
             self.assertIn("/organizer/games/", send.call_args_list[0].args[1])
-            self.assertEqual(send.call_args_list[2].args[0], "222")
-            self.assertIn("/attendance/", send.call_args_list[2].args[1])
+            for index in (1, 3):
+                self.assertEqual(send.call_args_list[index].args[0], "222")
+                self.assertIn("/attendance/", send.call_args_list[index].args[1])
+            self.assertIn("Manage your registration", send.call_args_list[1].args[1])
 
 
 class TelegramLifecycleTests(unittest.IsolatedAsyncioTestCase):
