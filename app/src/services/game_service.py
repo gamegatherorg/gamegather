@@ -84,13 +84,21 @@ def list_open_games() -> list[dict[str, Any]]:
                 status,
                 min_players,
                 organizer_name,
-                created_at
+                created_at,
+                (SELECT COUNT(*) FROM registrations r WHERE r.game_id = games.id)
+                    AS registration_count
             FROM games 
             WHERE status = 'open' 
             ORDER BY created_at DESC
             """
         ).fetchall()
-        return [dict(row) for row in rows]
+        games = []
+        for row in rows:
+            game = dict(row)
+            registration_count = int(game.pop("registration_count"))
+            game["players_needed"] = max(0, int(game["min_players"]) - registration_count)
+            games.append(game)
+        return games
 
 def get_game(game_id: int) -> dict[str, Any] | None:
     """Fetch one game and its registrations."""
